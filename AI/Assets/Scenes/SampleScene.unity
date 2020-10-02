@@ -329,6 +329,7 @@ GameObject:
   - component: {fileID: 735866442}
   - component: {fileID: 735866441}
   - component: {fileID: 735866446}
+  - component: {fileID: 735866447}
   m_Layer: 0
   m_Name: car
   m_TagString: Untagged
@@ -422,7 +423,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 735866440}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.6, z: 23.87}
+  m_LocalPosition: {x: 24.9, y: 0.6, z: -25.22}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -440,16 +441,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aa772983bb28334286897282963a943, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  vel: 0
-  acel: 0.001
   maxVel: 0.1
-  rInVel: 0.6
-  rInAcel: 0
-  maxRVel: 2
+  maxRVel: 0.3
   timeMultiplier: -0.2
   distanceMultiplier: -1.4
   goalA: {fileID: 452653087}
   goalB: {fileID: 2059490206}
+  layers: 3
+  neurons: 10
+--- !u!114 &735866447
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 735866440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c18f67480b92c964b91d5010d95241b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  biases: []
+  fitness: 0
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0

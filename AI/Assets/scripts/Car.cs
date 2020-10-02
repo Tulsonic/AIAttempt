@@ -2,24 +2,25 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(NeuralNet))]
+
 public class Car : MonoBehaviour
 {
     Rigidbody rb;
 
     float timeSinceStart = 0f;
 
+    NeuralNet network;
+
     [Header("Motion")]
-    public float vel = 0f;
-    public float acel = 0f;
+    float vel = 0f;
+    float acel = 0f;
 
     public float maxVel = 0f;
 
     [Header("Rotation")]
-    public float rInVel = 0f;
-    public float rInAcel = 0f;
-
-    Vector3 rVel = Vector3.zero;
-    Vector3 rAcel = Vector3.zero;
+    float rVel = 0f;
+    float rAcel = 0f;
 
     public float maxRVel = 0f;
 
@@ -29,20 +30,29 @@ public class Car : MonoBehaviour
     public Transform goalA;
     public Transform goalB;
 
+    [Header("NN options")]
+    public int layers = 4;
+    public int neurons = 15;
+
     string goal = "A";
 
     float fitness = 0f;
 
     float distanceToTarget = 0f;
 
-    float sForward, sLeft, sRight, sBack, sFLeft, sFRight, sBLeft, sBRight;
+    List<float> inputs = new List<float>();
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
 
-        rVel = new Vector3(0, rInVel, 0);
-        rAcel = new Vector3(0, rInAcel, 0);
+        for (int i = 0; i < 10; i++)
+        {
+            inputs.Add(0f);
+        }
+
+        network = GetComponent<NeuralNet>();
+        network.Initilise(layers, neurons);
     }
     
 
@@ -70,7 +80,6 @@ public class Car : MonoBehaviour
         }
 
         fitness = distanceToTarget * distanceMultiplier + timeSinceStart * timeMultiplier;
-        print(fitness);
     }
 
     void InputSensors()
@@ -91,7 +100,7 @@ public class Car : MonoBehaviour
 
         if(Physics.Raycast(r, out hit, 60))
         {
-            sForward = hit.distance / 60;
+            inputs[0] = hit.distance / 60;
             //print("sForward: " + sForward);
         }
 
@@ -99,7 +108,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sLeft = hit.distance / 60;
+            inputs[1] = hit.distance / 60;
             //print("sLeft: " + sLeft);
         }
 
@@ -107,7 +116,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sRight = hit.distance / 60;
+            inputs[2] = hit.distance / 60;
             //print("sRight: " + sRight);
         }
 
@@ -115,7 +124,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sBack = hit.distance / 60;
+            inputs[3] = hit.distance / 60;
             //print("sBack: " + sBack);
         }
 
@@ -123,7 +132,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sFLeft = hit.distance / 60;
+            inputs[4] = hit.distance / 60;
             //print("sFLeft: " + sFLeft);
         }
 
@@ -131,7 +140,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sFRight = hit.distance / 60;
+            inputs[5] = hit.distance / 60;
             //print("sFRight: " + sFRight);
         }
 
@@ -139,7 +148,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sBLeft = hit.distance / 60;
+            inputs[6] = hit.distance / 60;
             //print("sBLeft: " + sBLeft);
         }
 
@@ -147,7 +156,7 @@ public class Car : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 60))
         {
-            sBRight = hit.distance / 60;
+            inputs[7] = hit.distance / 60;
             //print("sBRight: " + sBRight);
         }
 
@@ -162,26 +171,40 @@ public class Car : MonoBehaviour
 
     void MoveCar()
     {
-        if (vel < maxVel)
+        if (Mathf.Abs(vel) < maxVel)
         {
+            print(vel);
             vel += acel;
+        } else
+        {
+            vel = maxVel;
         }
 
         rb.MovePosition(rb.position += transform.forward * vel);
 
-        if (rVel.magnitude < maxRVel)
+        if (Mathf.Abs(rVel) < maxRVel)
         {
             rVel += rAcel;
+        } else
+        {
+            rVel = maxRVel;
         }
 
-        Debug.Log(rVel);
-
-        rb.MoveRotation(rb.rotation * Quaternion.Euler(rVel));
+        rb.MoveRotation(rb.rotation * Quaternion.Euler(Vector3.up * rVel));
     }
     
     void FixedUpdate()
     {
         InputSensors();
+
+        inputs[8] = vel;
+        inputs[9] = rVel;
+
+        (rAcel, acel) = network.RunNetwork(inputs);
+
+        rAcel /= 10;
+        acel /= 10;
+
         MoveCar();
 
         timeSinceStart += Time.deltaTime;
