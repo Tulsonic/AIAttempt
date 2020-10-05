@@ -13,7 +13,7 @@ public class NeuralNet : MonoBehaviour
 
     public List<Matrix<float>> hiddenLayers = new List<Matrix<float>>();
 
-    public Matrix<float> outputLayer = Matrix<float>.Build.Dense(1, 2);
+    public Matrix<float> outputLayer = Matrix<float>.Build.Dense(1, 4);
 
     public List<Matrix<float>> weights = new List<Matrix<float>>();
 
@@ -49,7 +49,7 @@ public class NeuralNet : MonoBehaviour
             weights.Add(hiddenToHidden);
         }
 
-        Matrix<float> outputWeights = Matrix<float>.Build.Dense(hnCount, 2);
+        Matrix<float> outputWeights = Matrix<float>.Build.Dense(hnCount, 4);
         weights.Add(outputWeights);
         biases.Add(Random.Range(-1f, 1f));
 
@@ -61,17 +61,52 @@ public class NeuralNet : MonoBehaviour
     {
         for (int i = 0; i < weights.Count; i++)
         {
-            for (int j = 0; j < weights[i].RowCount; j++)
+            for (int x = 0; x < weights[i].RowCount; x++)
             {
-                for (int k = 0; k < weights[i].ColumnCount; k++)
+                for (int y = 0; y < weights[i].ColumnCount; y++)
                 {
-                    weights[i][j, k] = Random.Range(-1f, 1f);
+                    weights[i][x, y] = Random.Range(-1f, 1f);
                 }
             }
         }
     }
 
-    public (float, float) RunNetwork(List<float> a)
+    Matrix<float> ReluMat(Matrix<float> mat)
+    {
+        for (int x = 0; x < mat.RowCount; x++)
+        {
+            for (int y = 0; y < mat.ColumnCount; y++)
+            {
+                if (mat[x, y] >= 0)
+                {
+                    mat[x, y] = Mathf.Max(0, mat[x, y]);
+                } else
+                {
+                    mat[x, y] = mat[x, y] * -0.01f;
+                }
+            }
+        }
+
+        return mat;
+    }
+
+    float Relu (float inp)
+    {
+        return Mathf.Min(Mathf.Max(0, inp), 0.25f);
+    }
+
+    float classifier (float inp)
+    {
+        if (inp >= 0)
+        {
+            return 1;
+        } else
+        {
+            return -1;
+        }
+    }
+
+    public (float, float, float, float) RunNetwork(List<float> a)
     {
         for (int i = 0; i < 10; i++)
         {
@@ -80,15 +115,20 @@ public class NeuralNet : MonoBehaviour
 
         inputLayer = inputLayer.PointwiseTanh();
 
-        hiddenLayers[0] = ((inputLayer * weights[0]) + biases[0]).PointwiseTanh();
+        hiddenLayers[0] = ReluMat((inputLayer * weights[0]) + biases[0]);
 
         for (int i = 1; i < hiddenLayers.Count; i++)
         {
-            hiddenLayers[i] = ((hiddenLayers[i - 1] * weights[i]) + biases[i]).PointwiseTanh();
+            hiddenLayers[i] = ReluMat((hiddenLayers[i - 1] * weights[i]) + biases[i]);
         }
 
-        outputLayer = ((hiddenLayers[hiddenLayers.Count - 1] * weights[weights.Count - 1]) + biases[biases.Count - 1]).PointwiseTanh();
+        outputLayer = ((hiddenLayers[hiddenLayers.Count - 1] * weights[weights.Count - 1]) + biases[biases.Count - 1]);
 
-        return (outputLayer[0,0], outputLayer[0,1]);
+        outputLayer[0, 0] = Relu(outputLayer[0, 0]);
+        outputLayer[0, 1] = Relu(outputLayer[0, 1]);
+        outputLayer[0, 2] = classifier(outputLayer[0, 2]);
+        outputLayer[0, 3] = classifier(outputLayer[0, 3]);
+
+        return (outputLayer[0,0], outputLayer[0,1], outputLayer[0, 2], outputLayer[0, 3]);
     }
 }

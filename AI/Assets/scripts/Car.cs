@@ -10,7 +10,12 @@ public class Car : MonoBehaviour
 
     float timeSinceStart = 0f;
 
-    NeuralNet network;
+    public NeuralNet network;
+
+    string state = "moving";
+
+    Vector3 startPosition;
+    Vector3 startRotation;
 
     [Header("Motion")]
     float vel = 0f;
@@ -31,12 +36,12 @@ public class Car : MonoBehaviour
     public Transform goalB;
 
     [Header("NN options")]
-    public int layers = 4;
-    public int neurons = 15;
+    public int layers = 1;
+    public int neurons = 7;
 
     string goal = "A";
 
-    float fitness = 0f;
+    public float fitness = 0f;
 
     float distanceToTarget = 0f;
 
@@ -51,16 +56,26 @@ public class Car : MonoBehaviour
             inputs.Add(0f);
         }
 
+        startPosition = transform.position;
+        startRotation = transform.eulerAngles;
+
         network = GetComponent<NeuralNet>();
         network.Initilise(layers, neurons);
+    }
+
+    void Death()
+    {
+        GameObject.FindObjectOfType<GenController>().Death(gameObject);
+        state = "static";
     }
     
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.layer == 8)
+        if (collision.gameObject.layer == 8 && state != "static")
         {
-            Debug.Log(collision);
+            fitness -= fitness * 0.1f;
+            Death();
         }
     }
 
@@ -80,6 +95,11 @@ public class Car : MonoBehaviour
         }
 
         fitness = distanceToTarget * distanceMultiplier + timeSinceStart * timeMultiplier;
+
+        if (timeSinceStart > 10 && Mathf.Abs(fitness) < 100 && state != "static")
+        {
+            Death();
+        }
     }
 
     void InputSensors()
@@ -98,7 +118,7 @@ public class Car : MonoBehaviour
         Ray r = new Ray(transform.position, forward);
         RaycastHit hit;
 
-        if(Physics.Raycast(r, out hit, 60))
+        if(Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[0] = hit.distance / 60;
             //print("sForward: " + sForward);
@@ -106,7 +126,7 @@ public class Car : MonoBehaviour
 
         r.direction = left;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[1] = hit.distance / 60;
             //print("sLeft: " + sLeft);
@@ -114,7 +134,7 @@ public class Car : MonoBehaviour
 
         r.direction = right;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[2] = hit.distance / 60;
             //print("sRight: " + sRight);
@@ -122,7 +142,7 @@ public class Car : MonoBehaviour
 
         r.direction = back;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[3] = hit.distance / 60;
             //print("sBack: " + sBack);
@@ -130,7 +150,7 @@ public class Car : MonoBehaviour
 
         r.direction = forwardLeft;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[4] = hit.distance / 60;
             //print("sFLeft: " + sFLeft);
@@ -138,7 +158,7 @@ public class Car : MonoBehaviour
 
         r.direction = forwardRight;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[5] = hit.distance / 60;
             //print("sFRight: " + sFRight);
@@ -146,7 +166,7 @@ public class Car : MonoBehaviour
 
         r.direction = backLeft;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[6] = hit.distance / 60;
             //print("sBLeft: " + sBLeft);
@@ -154,7 +174,7 @@ public class Car : MonoBehaviour
 
         r.direction = backRight;
 
-        if (Physics.Raycast(r, out hit, 60))
+        if (Physics.Raycast(r, out hit, 60, 8))
         {
             inputs[7] = hit.distance / 60;
             //print("sBRight: " + sBRight);
@@ -164,20 +184,17 @@ public class Car : MonoBehaviour
 
     }
 
-    void Update()
-    {
-        Debug.DrawLine(transform.position, transform.position + transform.forward * 2, Color.green);
-    }
-
     void MoveCar()
     {
         if (Mathf.Abs(vel) < maxVel)
         {
-            print(vel);
             vel += acel;
         } else
         {
-            vel = maxVel;
+            if ((vel < 0 && acel > 0) || (vel > 0 && acel < 0))
+            {
+                vel += acel;
+            }
         }
 
         rb.MovePosition(rb.position += transform.forward * vel);
@@ -185,30 +202,52 @@ public class Car : MonoBehaviour
         if (Mathf.Abs(rVel) < maxRVel)
         {
             rVel += rAcel;
-        } else
+        }
+        else
         {
-            rVel = maxRVel;
+            if ((rVel < 0 && rAcel > 0) || (rVel > 0 && rAcel < 0))
+            {
+               rVel += rAcel;
+            }
         }
 
-        rb.MoveRotation(rb.rotation * Quaternion.Euler(Vector3.up * rVel));
+        rb.MoveRotation(rb.rotation * Quaternion.Euler(Vector3.up * rVel * vel / maxVel));
     }
+
+    void Reset()
+    {
+        fitness = 0;
+        timeSinceStart = 0f;
+        distanceToTarget = 0f;
+        transform.position = startPosition;
+        transform.eulerAngles = startRotation;
+    }
+
+    public void ResetWithNetwork(NeuralNet net)
+    {
+        network = net;
+        Reset();
+    } 
     
     void FixedUpdate()
     {
-        InputSensors();
+        if (state == "moving")
+        {
+            InputSensors();
 
-        inputs[8] = vel;
-        inputs[9] = rVel;
+            inputs[8] = vel / maxVel;
+            inputs[9] = rVel / maxRVel;
 
-        (rAcel, acel) = network.RunNetwork(inputs);
+            (float rScal, float vScal, float rDir, float vDir) = network.RunNetwork(inputs);
 
-        rAcel /= 10;
-        acel /= 10;
+            acel = vScal * vDir;
+            rAcel = rScal * rDir;
 
-        MoveCar();
+            MoveCar();
 
-        timeSinceStart += Time.deltaTime;
+            timeSinceStart += Time.deltaTime;
 
-        fitnessCalculation();
+            fitnessCalculation();
+        }
     }
 }
